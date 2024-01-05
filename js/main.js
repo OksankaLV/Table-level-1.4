@@ -161,7 +161,8 @@ function DataTable(config) {
         function verifyOutputCell(event) {
           console.log(event)
           if (event.key === "Enter") {
-            document.querySelectorAll(".inputData").forEach(
+            boderRed('.inputData')
+        /*    document.querySelectorAll(".inputData").forEach(
               el => {
                 if (el.value === '') {
                   el.classList.add('.redBorder')
@@ -171,9 +172,9 @@ function DataTable(config) {
                   el.classList.remove('.redBorder')
                 }
               }
-            )
+            )*/
             console.log(document.querySelectorAll('.redBorder'))
-            if (document.querySelectorAll('.redBorder').length===0){
+            if (noBoderRedBoolean()){
               document.querySelector("#inputButton").click()
             }
           }
@@ -196,14 +197,15 @@ function DataTable(config) {
     async function addNewData() {
       const url = config.apiUrl;
       console.log(url);
-      const res = document.querySelectorAll('.inputData')
+      const res = document.querySelectorAll('.inputData');
+      boderRed();
+      
       let obj = {};
       for (let i = 0; i < res.length; i++) {
         let resKey = res[i].id
         let resVal = res[i].value
         console.log(resKey, resVal)
         obj = { ...obj, [resKey]: resVal }
-      
     }
      console.log(obj)
     const response = await fetch(url, {
@@ -390,3 +392,20 @@ function addButton(parent, name, className, id, delDate) {
   button.onclick = delDate;
   parent.appendChild(button)
 };
+
+function boderRed() {
+  document.querySelectorAll(".inputData").forEach(
+    el => {
+      if (el.value === '') {
+        el.classList.add('.redBorder')
+        el.focus();
+        return error;
+      } else {
+        el.classList.remove('.redBorder')
+      }
+    }
+  )
+}
+function noBoderRedBoolean() {
+  return (document.querySelectorAll('.redBorder').length===0)
+}
