@@ -199,11 +199,11 @@ function DataTable(config) {
       console.log(url);
       const res = document.querySelectorAll('.inputData');
       boderRed();
-      
       let obj = {};
       for (let i = 0; i < res.length; i++) {
         let resKey = res[i].id
-        let resVal = res[i].value
+        let resVal;
+        res[i].type !== 'number' ? resVal = res[i].value : resVal = +res[i].value;
         console.log(resKey, resVal)
         obj = { ...obj, [resKey]: resVal }
     }
@@ -356,7 +356,8 @@ async function replaceDate(id, config) {
     let obj = {};
     for (let i = 0; i < res.length; i++) {
       const resKey = res[i].id
-      const resVal = res[i].value
+      let resVal;
+        res[i].type !== 'number' ? resVal = res[i].value : resVal = +res[i].value;
     obj = { ...obj, [resKey]: resVal }
 
   }
