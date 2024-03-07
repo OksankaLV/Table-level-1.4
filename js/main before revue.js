@@ -9,19 +9,34 @@ function DataTable(config) {
   // тільки якщо не приходить параметр data, то потрібно перевірити,
   // можливо в конфізі є поле apiUrl
   // і тоді дані потрібно брати звідти
-   
+  const value = [];
+ 
   //first add place for table
   const place = config.parent;
   const divTable = document.querySelector(place);
   const table = document.createElement('table');
+  table.id = place;  
   divTable.appendChild(table);
 
   // creation of a table header by config
-  const thead = addHeaderTable();
-
+  const thead = document.createElement('thead');
+  table.appendChild(thead);
+  const trThead = document.createElement('tr');
+  thead.appendChild(trThead);
+  const thNumber = document.createElement('th');
+  thNumber.innerHTML = "№";
+  trThead.appendChild(thNumber);
+  for (let i in config.columns) {
+    const th = document.createElement('th');
+    th.innerHTML = config.columns[i].title;
+    const val = config.columns[i].value
+    value.push(val);
+    trThead.appendChild(th);
+  }
+  addActionsColumn(trThead);
   addButtonInsert(thead);
 
-  getData(config.apiUrl).then(req => addData(req.data)).then(data => addColumnsTable(data));
+  postData(config.apiUrl).then(req => addData(req.data)).then(data => addColumnsTable(data));
   
   /**
    * the function accepts an object and returns an array of values ​​necessary to fill the table
@@ -34,11 +49,11 @@ function DataTable(config) {
     for (let i in obj) {
       const user = obj[i]
       let newObj = { id: i };
-      for (let j of config.columns) {
-        if (typeof j.value !== 'function') {
-          newObj = { ...newObj, [j.value]: user[j.value] }
+      for (let j of value) {
+        if (typeof j !== 'function') {
+          newObj = { ...newObj, [j]: user[j] }
         } else {
-          newObj = { ...newObj, [j.value]: j.value(user) }
+          newObj = { ...newObj, [j]: j(user) }
         }
       }
       data.push(newObj);
@@ -61,26 +76,47 @@ function DataTable(config) {
       tr.appendChild(number);
 
       // columns in each row        
-      for (let j = 0; j < config.columns.length; j++) {
+      for (let j = 0; j < value.length; j++) {
         let td = document.createElement('td');
-        let key = data[i][config.columns[j].value];
-        key == undefined ? td.innerHTML = " " : td.innerHTML = data[i][config.columns[j].value];
-         tr.appendChild(td);
+        let key = data[i][value[j]];
+        key == undefined ? td.innerHTML = " " : td.innerHTML = data[i][value[j]];
+        if (value[j] == 'Action') {
+          //td.innerHTML = `<button class="buttonDel" data-id="${i + 1}" onclick='deleteRow( ${data[i].id}, ${JSON.stringify(config)})'>Delete</button>`
+          addButton(td,'Видалити', 'buttonDel', data[i].id, delDate);
+          addButton(td, 'Редагувати', 'buttonRewrite', data[i].id, rewriteRow);
+          
+        };   
+        tr.appendChild(td);
       }
-
-      addButton(tr,'Видалити', 'buttonDel', data[i].id, delDate);
-      addButton(tr, 'Редагувати', 'buttonRewrite', data[i].id, rewriteRow);
-    
     } return data;
   }
 
 
+
+  function addActionsColumn(elemParent) {
+    const th = document.createElement('th')
+    th.innerHTML = "Action"
+    elemParent.appendChild(th);
+    value.push("Action");
+  }
+  function addButtonInsert(elemParent) {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th')
+    const buttonInsert = document.createElement('button');
+    buttonInsert.innerHTML = 'Додати'
+    buttonInsert.onclick = addInsertRow;
+    th.appendChild(buttonInsert)
+    tr.appendChild(th)
+    elemParent.appendChild(tr)
+
     function addInsertRow(event) {
       delInput();
-      for (let i = 0; i < config.columns.length; i++) {
-        const dataInput = config.columns[i].input;
-     
-        if (Array.isArray(dataInput)) {
+      const properties = config.columns.map(el => el);
+      console.log(properties)
+      for (let i = 0; i < properties.length; i++) {
+        const dataInput = properties[i].input;
+        console.log(Object.keys(dataInput))
+        if (typeof dataInput[0] === 'object') {
           dataInput.forEach(element => {
             addInput(element, i)
           });
@@ -89,15 +125,13 @@ function DataTable(config) {
 
       function addInput(oneInput, i) {
         const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.id = oneInput.name || properties[i].value;
+        input.name = oneInput.name || properties[i].value;
+        label.innerHTML = oneInput.name || properties[i].title;
         const thInput = document.createElement('th');
         thInput.className = 'formInput';
-
         if (oneInput.type != 'select') {
-            const input = document.createElement('input');
-            input.id = oneInput.name || config.columns[i].value;
-            input.name = oneInput.name || config.columns[i].value;
-            label.innerHTML = oneInput.name || config.columns[i].title;
-            
           for (let k in oneInput) {
             input[k] = oneInput[k]
             input.className = 'inputData'
@@ -105,12 +139,12 @@ function DataTable(config) {
             input.onkeydown = verifyOutputCell;
             thInput.appendChild(label);
             label.appendChild(input)
-            thead.appendChild(thInput) // REWRITED tr
+            tr.appendChild(thInput)
           }
         } else {
           const select = document.createElement('select');
-          select.id = oneInput.name || config.columns[i].value;;
-          select.name = oneInput.name || config.columns[i].value;
+          select.id = input.id;
+          select.name = input.name;
           select.className = 'inputData'
           if (oneInput.required !== false) { select.required = true }
           thInput.appendChild(label);
@@ -121,12 +155,25 @@ function DataTable(config) {
             select.appendChild(option)
           })
           label.appendChild(select)
-          thead.appendChild(thInput) // REWRITED tr
+          tr.appendChild(thInput)
         }
 
         function verifyOutputCell(event) {
+          console.log(event)
           if (event.key === "Enter") {
             boderRed('.inputData')
+        /*    document.querySelectorAll(".inputData").forEach(
+              el => {
+                if (el.value === '') {
+                  el.classList.add('.redBorder')
+                  el.focus();
+                  return error;
+                } else {
+                  el.classList.remove('.redBorder')
+                }
+              }
+            )*/
+            console.log(document.querySelectorAll('.redBorder'))
             if (noBoderRedBoolean()){
               document.querySelector("#inputButton").click()
             }
@@ -144,11 +191,12 @@ function DataTable(config) {
       const thInput = document.createElement('th');
       thInput.appendChild(input)
       thInput.className = 'formInput';
-      thead.appendChild(thInput) //REWRITED tr
+      tr.appendChild(thInput)
     }
     
     async function addNewData() {
       const url = config.apiUrl;
+      console.log(url);
       const res = document.querySelectorAll('.inputData');
       boderRed();
       let obj = {};
@@ -156,10 +204,10 @@ function DataTable(config) {
         let resKey = res[i].id
         let resVal;
         res[i].type !== 'number' ? resVal = res[i].value : resVal = +res[i].value;
+        console.log(resKey, resVal)
         obj = { ...obj, [resKey]: resVal }
     }
-
-       document.querySelector(`${config.parent} table`).remove();
+     console.log(obj)
     const response = await fetch(url, {
     method: "POST",
     mode: "cors",
@@ -172,19 +220,10 @@ function DataTable(config) {
     referrerPolicy: "no-referrer", // no-referrer, *client
     body: JSON.stringify(obj), // body data type must match "Content-Type" header*/
   });
-      return response.json().then(req => { if (req.status='200'){DataTable(config)}});
-  }
-
-  function addButtonInsert(elemParent) {
-    const tr = document.createElement('tr');
-    const th = document.createElement('th')
-    const buttonInsert = document.createElement('button');
-    buttonInsert.innerHTML = 'Додати'
-    buttonInsert.onclick = addInsertRow;
-    th.appendChild(buttonInsert)
-    tr.appendChild(th)
-    elemParent.appendChild(tr)
-
+      return await response.json().then((res) => {
+        document.querySelector(`${config.parent} table`).remove(); return res
+      }).then(DataTable(config)); // parses JSON response into native JavaScript objects 
+    }
   }
   function rewriteRow(event) {
     delInput()
@@ -193,9 +232,12 @@ function DataTable(config) {
     const tr = document.createElement('tr')
     tr.className = 'formInput'
     elemParent.removeEventListener('click',rewriteRow)
-const properties = config.columns
+    console.log(event.srcElement)
+const properties = config.columns.map(el => el);
+      console.log(properties)
       for (let i = 0; i < properties.length; i++) {
         const dataInput = properties[i].input;
+        console.log(Object.keys(dataInput))
         if (typeof dataInput[0] === 'object') {
           dataInput.forEach(element => {
             addInput(element, i)
@@ -247,12 +289,13 @@ const properties = config.columns
                 if (el.value === '') {
                   el.classList.add('.redBorder')
                   el.focus();
-                  throw new Error('Not data in verifyOutputCell'); //rewrited error
+                  return error;
                 } else {
                   el.classList.remove('.redBorder')
                 }
               }
             )
+            console.log(document.querySelectorAll('.redBorder'))
             if (document.querySelectorAll('.redBorder').length===0){
               replaceDate(id,config)
             }
@@ -264,35 +307,12 @@ const properties = config.columns
     const id = event.target['data-id'];
     deleteRow(id,config)
   }
-
-function addHeaderTable() {
-  
-  const thead = document.createElement('thead');
-  table.appendChild(thead);
-
-  const trThead = document.createElement('tr');
-  thead.appendChild(trThead);
-
-  const thNumber = document.createElement('th');
-  thNumber.innerHTML = "№";
-
-  trThead.appendChild(thNumber);
-  for (let i in config.columns) {
-    const th = document.createElement('th');
-    th.innerHTML = config.columns[i].title;
-   // const val = config.columns[i].value
-   // value.push(val);
-    trThead.appendChild(th);
-  }
- return thead
-}
-
 }
 
 DataTable(config1);
 DataTable(config2);
 
-async function getData(url) {
+async function postData(url) {
   const response = await fetch(url, {
     method: "GET",
     mode: "cors",
@@ -309,7 +329,7 @@ async function getData(url) {
   // parses JSON response into native JavaScript objects
 }
 async function deleteRow(id, config) {
- document.querySelector(`${config.parent} table`).remove();
+
  const urlDel = `${config.apiUrl}/${id}`;
  
   const response = await fetch(urlDel, {
@@ -324,12 +344,11 @@ async function deleteRow(id, config) {
     referrerPolicy: "no-referrer", // no-referrer, *client
     body: JSON.stringify(), // body data type must match "Content-Type" header*/
   });
-  return response.json().then(req => {
-    if (req.result="Deleted!"){DataTable(config)}
-  });
-  
-}
+  return await response.json().then((res) => {
+        document.querySelector(`${config.parent} table`).remove(); return res
+      }).then(DataTable(config));; // parses JSON response into native JavaScript objects 
 
+}
 async function replaceDate(id, config) {
  const urlPut = `${config.apiUrl}/${id}`;
 
@@ -342,7 +361,6 @@ async function replaceDate(id, config) {
     obj = { ...obj, [resKey]: resVal }
 
   }
-  document.querySelector(`${config.parent} table`).remove();
 
   const response = await fetch(urlPut, {
     method: "PUT",
@@ -356,10 +374,10 @@ async function replaceDate(id, config) {
     referrerPolicy: "no-referrer", // no-referrer, *client
     body: JSON.stringify(obj), // body data type must match "Content-Type" header*/
   });
-  return response.json().then(req => {
-    if (req.result="Updated!"){DataTable(config)}
-  });;
-
+  return await response.json().then((res) => {
+        document.querySelector(`${config.parent} table`).remove(); return res
+      }).then(DataTable(config));; // parses JSON response into native JavaScript objects 
+  
 }
 
 function delInput() {
@@ -382,7 +400,7 @@ function boderRed() {
       if (el.value === '') {
         el.classList.add('.redBorder')
         el.focus();
-        //throw new Error('Not found data'); //REWRITED return error;
+        return error;
       } else {
         el.classList.remove('.redBorder')
       }
@@ -393,24 +411,4 @@ function noBoderRedBoolean() {
   return (document.querySelectorAll('.redBorder').length===0)
 }
 
-
-/* DELETE const value = [];
-   DELETE table.id = place; #
-ADD addHeaderTable() from DataTable
-  DELETE addActionsColumn(trThead);
-in addColumnsTable the condition if value="Action" was removed and the addition of buttons was moved to a loop (parent td rewrite on tr)
-in addInsertRow deleted 
-      const properties = config.columns.map(el => el);
-      and other console.log(..) in all code
-in addInsertRow used Array.isArray() DELETE if (typeof dataInput[0] === 'object')
-rewrite addInput
-  REWRITE 
-      return await response.json().then((res) => {
-        document.querySelector(`${config.parent} table`).remove(); return res
-      }).then(DataTable(config)); // parses JSON response into native JavaScript objects 
-      IN ALL FETCH
-REWRITED error ON throw new Error('...'); 
-
-not fixed: repeating the addInput functions and editing a record by replacing an existing one
-
-*/
+///
